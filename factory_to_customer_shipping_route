@@ -1,0 +1,30 @@
+/* This work was a hassle. First i had to clean this data to make it executable in a sql database.
+Then i check the data to understand and be able to extract useful insights from it. What we observed is that every raw shipping duration falls between 2000 and 2011 days, and subtracting 2000 produces a plausible 0–11 day shipping duration that aligns with the shipping modes. i used three different query to make sure this 2000 difference is for all the data in the individual row and not just an anomaly. All this was done before i could tackle this problem. */
+
+WITH sales_table AS (
+  SELECT DISTINCT
+    sales.order_id AS order_id,
+    sales.order_date AS order_date,
+    sales.ship_date AS ship_date,
+    sales.ship_mode AS ship_mode,
+    sales.state_province AS state_province,
+    products.factory AS factory
+  FROM us_candy_distributor.candy_sales AS sales
+  INNER JOIN us_candy_distributor.candy_products AS products
+    ON sales.product_id = products.product_id
+)
+
+SELECT
+  sales_table.factory AS factory,
+  sales_table.state_province AS state_province,
+  COUNT(DISTINCT sales_table.order_id) AS orders,
+  ROUND(AVG(DATE_DIFF(DATE(sales_table.ship_date), DATE(sales_table.order_date), DAY) - 2000), 2) AS avg_shipping_days
+FROM sales_table
+GROUP BY
+  sales_table.factory,
+  sales_table.state_province
+HAVING
+ orders > 10
+ORDER BY
+  avg_shipping_days,
+  orders DESC
