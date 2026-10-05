@@ -8,4 +8,26 @@ FROM us_candy_distributor.candy_sales AS sale
 GROUP BY
   sale.product_name
 ORDER BY
-  product_margin DESC
+  product_margin DESC;
+
+/* Additional work: product-line and their sales volume */
+SELECT
+  product_name,
+  SUM(units) AS sales_volume
+FROM us_candy_distributor.candy_sales
+GROUP BY
+  product_name
+ORDER BY
+  sales_volume DESC;
+
+/* Additional work: product-line and their profit */
+
+SELECT
+  product_name,
+  ROUND(SUM(gross_profit), 2) AS profit
+FROM us_candy_distributor.candy_sales
+GROUP BY
+  product_name
+ORDER BY
+  profit DESC;
+
