@@ -136,6 +136,17 @@ Product margin was calculated as:
 
 **Gross Profit ÷ Sales × 100**
 
+```sql
+ELECT
+  sale.product_name,
+  ROUND(SAFE_DIVIDE(SUM(sale.gross_profit), SUM(sale.sales)) * 100, 2) AS product_margin
+FROM us_candy_distributor.candy_sales AS sale
+GROUP BY
+  sale.product_name
+ORDER BY
+  product_margin DESC;
+```
+
 The products with the highest margins were:
 
 | Product                           | Product Margin |
@@ -158,6 +169,17 @@ I also examined sales volume and total gross profit to understand whether high-m
 
 The highest sales volumes were:
 
+```sql
+SELECT
+  product_name,
+  SUM(units) AS sales_volume
+FROM us_candy_distributor.candy_sales
+GROUP BY
+  product_name
+ORDER BY
+  sales_volume DESC;
+```
+
 | Product                           | Units Sold |
 | --------------------------------- | ---------: |
 | Wonka Bar - Milk Chocolate        |  **8,267** |
@@ -167,6 +189,17 @@ The highest sales volumes were:
 | Wonka Bar - Nutty Crunch Surprise |      6,755 |
 
 The products generating the most gross profit were:
+
+```sql
+SELECT
+  product_name,
+  ROUND(SUM(gross_profit), 2) AS profit
+FROM us_candy_distributor.candy_sales
+GROUP BY
+  product_name
+ORDER BY
+  profit DESC;
+```
 
 | Product                           |   Gross Profit |
 | --------------------------------- | -------------: |
