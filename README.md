@@ -38,6 +38,36 @@ To measure route efficiency, I calculated the average adjusted shipping time for
 
 Routes with fewer than 10 orders were excluded so that very small order volumes would not dominate the results.
 
+```sql
+WITH sales_table AS (
+  SELECT DISTINCT
+    sales.order_id AS order_id,
+    sales.order_date AS order_date,
+    sales.ship_date AS ship_date,
+    sales.ship_mode AS ship_mode,
+    sales.state_province AS state_province,
+    products.factory AS factory
+  FROM us_candy_distributor.candy_sales AS sales
+  INNER JOIN us_candy_distributor.candy_products AS products
+    ON sales.product_id = products.product_id
+)
+
+SELECT
+  sales_table.factory AS factory,
+  sales_table.state_province AS state_province,
+  COUNT(DISTINCT sales_table.order_id) AS orders,
+  ROUND(AVG(DATE_DIFF(DATE(sales_table.ship_date), DATE(sales_table.order_date), DAY) - 2000), 2) AS avg_shipping_days
+FROM sales_table
+GROUP BY
+  sales_table.factory,
+  sales_table.state_province
+HAVING
+ orders > 10
+ORDER BY
+  avg_shipping_days,
+  orders DESC
+```
+
 The fastest route identified was:
 
 | Factory         | Customer State | Orders | Avg. Shipping Days |
@@ -55,6 +85,36 @@ The fastest route identified was:
 ### 2. Least Efficient Factory-to-Customer Shipping Routes
 
 The same route analysis was used to identify the longest average shipping times.
+
+```sql
+WITH sales_table AS (
+  SELECT DISTINCT
+    sales.order_id AS order_id,
+    sales.order_date AS order_date,
+    sales.ship_date AS ship_date,
+    sales.ship_mode AS ship_mode,
+    sales.state_province AS state_province,
+    products.factory AS factory
+  FROM us_candy_distributor.candy_sales AS sales
+  INNER JOIN us_candy_distributor.candy_products AS products
+    ON sales.product_id = products.product_id
+)
+
+SELECT
+  sales_table.factory AS factory,
+  sales_table.state_province AS state_province,
+  COUNT(DISTINCT sales_table.order_id) AS orders,
+  ROUND(AVG(DATE_DIFF(DATE(sales_table.ship_date), DATE(sales_table.order_date), DAY) - 2000), 2) AS avg_shipping_days
+FROM sales_table
+GROUP BY
+  sales_table.factory,
+  sales_table.state_province
+HAVING
+ orders > 10
+ORDER BY
+  avg_shipping_days DESC,
+  orders DESC
+```
 
 The least efficient route among routes with more than 10 orders was:
 
