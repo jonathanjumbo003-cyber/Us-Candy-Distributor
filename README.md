@@ -221,6 +221,93 @@ For this analysis, I used a **weighted geographic distance** approach.
 
 For each product, I considered the locations where its customers purchased the product and weighted each location by the number of units sold there. I then compared the current factory with every alternative factory.
 
+```sql
+WITH product_customers AS (
+  SELECT
+    sale.product_name AS product_name,
+    products.factory AS current_factory,
+    sale.postal_code AS postal_code,
+    SUM(sale.units) AS units
+  FROM us_candy_distributor.candy_sales AS sale
+  INNER JOIN us_candy_distributor.candy_products AS products
+    ON sale.product_id = products.product_id
+  GROUP BY
+    sale.product_name,
+    products.factory,
+    sale.postal_code
+),
+customers_location AS (
+  SELECT
+    pc.product_name AS product_name,
+    pc.current_factory AS current_factory,
+    pc.postal_code AS postal_code,
+    pc.units AS units,
+    uszip.lat AS customer_lat,
+    uszip.lng AS customer_lng
+  FROM product_customers AS pc
+  INNER JOIN us_candy_distributor.uszips AS uszip
+    ON CAST(pc.postal_code AS STRING) = CAST(uszip.zip AS STRING)
+),
+current_factory_distance AS (
+  SELECT
+    customers.product_name AS product_name,
+    customers.current_factory AS current_factory,
+    SUM(customers.units * ST_DISTANCE(ST_GEOGPOINT(factories.longitude, factories.latitude), ST_GEOGPOINT(customers.customer_lng, customers.customer_lat))) / SUM(customers.units) AS
+    current_avg_distance
+  FROM customers_location AS customers
+  INNER JOIN us_candy_distributor.candy_factories AS factories
+    ON customers.current_factory = factories.factory
+  GROUP BY
+    customers.product_name,
+    customers.current_factory
+),
+alternative_factory_distance AS (
+  SELECT
+  customers.product_name AS product_name,
+  customers.current_factory AS current_factory,
+  factories.factory AS alternative_factory,
+  SUM(customers.units * ST_DISTANCE(ST_GEOGPOINT(factories.longitude, factories.latitude), ST_GEOGPOINT(customers.customer_lng, customers.customer_lat))) / SUM(customers.units) AS
+  alternative_avg_distance
+  FROM customers_location AS customers
+  CROSS JOIN us_candy_distributor.candy_factories AS factories
+  WHERE
+    customers.current_factory <> factories.factory
+  GROUP BY
+    customers.product_name,
+    customers.current_factory,
+    alternative_factory
+),
+ranked_alternative AS (
+  SELECT
+    af.product_name AS product_name,
+    af.current_factory AS current_factory,
+    af.alternative_factory AS alternative_factory,
+    af.alternative_avg_distance AS alternative_avg_distance,
+    ROW_NUMBER () OVER(
+      PARTITION BY product_name, current_factory
+      ORDER BY alternative_avg_distance
+    ) AS factory_rank
+  FROM alternative_factory_distance AS af
+)
+
+SELECT
+  cf.product_name,
+  cf.current_factory,
+  ra.alternative_factory,
+  ROUND(cf.current_avg_distance / 1609.34, 2) AS current_avg_distance_miles,
+  ROUND(ra.alternative_avg_distance / 1609.34, 2) AS alternative_avg_distance_miles,
+  ROUND((cf.current_avg_distance - ra.alternative_avg_distance) / 1609.34, 2) AS saved_distance_miles
+FROM current_factory_distance AS cf
+INNER JOIN ranked_alternative AS ra
+  ON cf.product_name = ra.product_name
+  AND cf.current_factory = ra.current_factory
+WHERE
+  ra.factory_rank = 1 AND
+  ra.alternative_avg_distance < cf.current_avg_distance
+ORDER BY
+  saved_distance_miles DESC
+```
+
 The results show how much the average geographic distance could potentially be reduced by moving a product to another factory.
 
 | Product                           | Current Factory | Alternative Factory | Current Avg. Distance | Alternative Avg. Distance | Distance Saved |
